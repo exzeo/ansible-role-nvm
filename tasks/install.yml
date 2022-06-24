@@ -1,0 +1,152 @@
+---
+- name: Install dependencies
+  ansible.builtin.apt:
+    name: "{{ dependencies_packages }}"
+    state: present
+    force: true
+    update_cache: yes
+  register: package_ok
+  retries: 5
+  delay: 2
+  until: package_ok is success
+  tags:
+    - install
+    - install-dependency
+
+- name: Check that the nvm exists
+  ansible.builtin.stat:
+    path: "{{ nvm_dir }}"
+  register: nvm_result
+
+- name: Check nvm version
+  ansible.builtin.shell: "{{ nvm_command }} && nvm --version"
+  register: nvm_current_version
+  changed_when: false
+  when: nvm_result.stat.exists
+  args:
+    executable: /bin/bash
+
+- name: Get Latest Release of nvm
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/nvm-sh/nvm/releases/latest
+    method: GET
+    return_content: yes
+    status_code: 200
+    body_format: json
+  register: nvm_latest
+  retries: 5
+  delay: 2
+
+- name: install nvm
+  # when it doesnt exist or 
+  # when listed version doesnt match current version or
+  # when left blank and there is a new release
+  when: > 
+    (not nvm_result.stat.exists) or 
+    (nvm_version != "" and nvm_version not in nvm_current_version.stdout) or 
+    (nvm_version == "" and nvm_current_version.stdout not in nvm_latest.json.tag_name)
+  block:
+  - name: Remove NVM nvm_profile
+    ansible.builtin.blockinfile:
+      block: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" # This loads nvm
+        [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+      path: "{{ nvm_profile }}"
+      state: absent
+
+  - name: Uninstall nvm if exists
+    ansible.builtin.file:
+      path: "{{ nvm_dir }}"
+      state: absent
+
+  - name: Install via git
+    ansible.builtin.git:
+      dest: "{{ nvm_dir }}"
+      repo: https://github.com/nvm-sh/nvm.git
+      version: "{{ (nvm_version == '') | ternary('master', 'v' + nvm_version ) }}"
+
+  - name: Add NVM to nvm_profile
+    ansible.builtin.blockinfile:
+      block: |
+        export NVM_DIR="{{ nvm_dir }}"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+        [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+      create: yes
+      mode: 0644
+      insertbefore: BOF
+      path: "{{ nvm_profile }}"
+      state: present
+
+- name: install Nodejs Versions
+  block:
+  - name: Install Nodejs lts if none specified
+    ansible.builtin.shell: "{{ nvm_command }} && nvm install --lts"
+    register: ltsinstallout
+    when: (nodejs_version is not defined) or (nodejs_version|length == 0)
+    changed_when: "'is already installed.' not in ltsinstallout.stderr"
+    args:
+      executable: /bin/bash
+
+  - name: Install Node Versions
+    ansible.builtin.shell: "{{ nvm_command }} && nvm install {{ (nodejs_version == 'lts') | ternary('--' + nodejs_version, nodejs_version ) }}"
+    register: installout
+    changed_when: "'is already installed.' not in installout.stderr"
+    when: (nodejs_version is defined) and (nodejs_version|length > 0)
+    args:
+      executable: /bin/bash
+
+  - name: Check Nodejs Version
+    ansible.builtin.shell: "{{ nvm_command }} && node --version"
+    register: nodejs_current_version
+    changed_when: false
+    args:
+      executable: /bin/bash
+
+  - name: Set Node Version as Default # noqa no-handler
+    ansible.builtin.shell: "{{ nvm_command }} && nvm alias default {{ nodejs_version }}"
+    register: nodealiasout
+    when:  nodejs_version|length > 0
+    changed_when: nodejs_current_version.stdout not in nodealiasout.stdout
+    args:
+      executable: /bin/bash
+
+  - name: Find Install Locations
+    ansible.builtin.shell: "{{ nvm_command }} && which {{ item }}"
+    register: which_locations
+    changed_when: false
+    args:
+      executable: /bin/bash
+    with_items: 
+    - node
+    - npm
+
+  - name: Creating a symlink for Locations
+    ansible.builtin.file:
+      dest: "/usr/local/bin/{{ item.item }}"
+      src: "{{ item.stdout }}"
+      state: link
+    with_items: "{{ which_locations.results }}"
+
+- name: Ensure npm global packages are installed.
+  npm:
+    name: "{{ item.name | default(item) }}"
+    version: "{{ item.version | default(omit) }}"
+    global: true
+    state: latest
+  with_items: "{{ npm_global_packages }}"
+
+- name: Find NPM Install Locations
+  ansible.builtin.shell: "{{ nvm_command }} && which {{ item.name | default(item) }}"
+  register: which_npm_locations
+  changed_when: false
+  args:
+    executable: /bin/bash
+  with_items: "{{ npm_global_packages }}"
+
+- name: Creating a symlink for Locations
+  ansible.builtin.file:
+    dest: "/usr/local/bin/{{ item.item.name | default(item.item) }}"
+    src: "{{ item.stdout }}"
+    state: link
+  with_items: "{{ which_npm_locations.results }}"
