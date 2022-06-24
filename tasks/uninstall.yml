@@ -1,0 +1,35 @@
+---
+# Uninstall NVM
+- name: Uninstall NVM
+  block:
+  - name: Uninstall dependencies
+    ansible.builtin.apt:
+      name: "{{ dependencies_packages }}"
+      state: absent
+      force: true
+      update_cache: yes
+    register: package_ok
+    retries: 5
+    delay: 2
+    until: package_ok is success
+    tags:
+      - uninstall
+      - uninstall-dependency
+
+  - name: Uninstall NVM
+    ansible.builtin.file:
+      path: "{{ nvm_dir }}"
+      state: absent
+
+  - name: Remove NVM from nvm_profile
+    ansible.builtin.blockinfile:
+      block: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" # This loads nvm
+        [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+      create: yes
+      mode: 0644
+      path: "{{ nvm_profile }}"
+      state: absent
+
+  when: uninstall | bool

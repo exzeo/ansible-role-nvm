@@ -1,0 +1,24 @@
+---
+# Version of NVM to install Ex. "0.39.1" leaving blank will checkout master
+nvm_version: ""
+
+# if using lts must use lts/* rest use version like normal Ex. "17.7.0 - if blank will nvm will set default based on what was first installed"
+nodejs_version: ""
+
+# profile that /bin/bash uses for Ex. ubuntu /etc/bash.bashrc
+# ~/.bashrc ~/profile /etc/profile ...
+nvm_profile: "/etc/bash.bashrc"
+
+# folder where to install nvm Ex /home/ubuntu/.nvm or ~/.nvm
+nvm_dir: "/usr/local/nvm"
+
+# Uninstall NVM and Nodejs
+uninstall: false
+
+# Define a list of global packages to be installed with NPM.
+npm_global_packages: []
+#  # Install a specific version of a package.
+#  - name: jslint
+#    version: 0.9.3
+#  # This shorthand syntax also works (same as previous example).
+#  - node-sass

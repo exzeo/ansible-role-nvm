@@ -1,0 +1,10 @@
+---
+- name: Install
+  hosts: all
+  roles:
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+      vars:
+        npm_global_packages:
+        - audit-check
+        - name: license-checker
+          version: 24.1.0

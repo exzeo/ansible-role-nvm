@@ -1,0 +1,55 @@
+- name: Verify
+  hosts: all
+  tasks:
+
+# NVM Verifications
+  - name: Check nvm version
+    shell: "source /usr/local/nvm/nvm.sh && nvm --version"
+    register: nvm_current_version
+    changed_when: false
+    args:
+      executable: /bin/bash
+
+  - name: Ensure nvm is installed
+    assert:
+      that:
+        - nvm_current_version.rc == 0
+
+# Nodejs Verifications
+  - name: Check nodejs version
+    shell: "source /usr/local/nvm/nvm.sh && node --version"
+    register: nodejs_current_version
+    changed_when: false
+    args:
+      executable: /bin/bash
+
+  - name: Ensure nodejs is installed
+    assert:
+      that:
+        - nodejs_current_version.rc == 0
+
+# NPM Verifications
+  - name: ensure audit-check installed
+    shell: "audit-check --help"
+    register: audit_check
+    changed_when: false
+    args:
+      executable: /bin/bash
+
+  - name: Ensure audit-check is installed
+    assert:
+      that:
+        - audit_check.rc == 0
+
+  - name: ensure license-checker is installed
+    shell: "license-checker --version"
+    register: license_checker
+    changed_when: false
+    failed_when: false
+    args:
+      executable: /bin/bash
+
+  - name: Ensure license-checker is correct version
+    assert:
+      that:
+        - "'24.1.0' in license_checker.stderr"

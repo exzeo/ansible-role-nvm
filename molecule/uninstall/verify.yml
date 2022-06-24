@@ -1,0 +1,31 @@
+- name: Verify
+  hosts: all
+  tasks:
+
+# NVM Verifications
+  - name: Check nvm version
+    shell: "source /usr/local/nvm/nvm.sh && nvm --version"
+    register: nvm_current_version
+    ignore_errors: yes
+    changed_when: false
+    args:
+      executable: /bin/bash
+
+  - name: Ensure nvm is installed
+    assert:
+      that:
+        - nvm_current_version.rc != 0
+
+# Nodejs Verifications
+  - name: Check nodejs version
+    shell: "source /usr/local/nvm/nvm.sh && node --version"
+    register: nodejs_current_version
+    ignore_errors: yes
+    changed_when: false
+    args:
+      executable: /bin/bash
+
+  - name: Ensure nodejs is installed
+    assert:
+      that:
+        - nodejs_current_version.rc != 0

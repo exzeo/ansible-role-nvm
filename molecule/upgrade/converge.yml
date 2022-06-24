@@ -1,0 +1,8 @@
+---
+- name: Install
+  hosts: all
+  roles:
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+      vars:
+        nvm_version: "0.39.1"
+        nodejs_version: "17.7.0"

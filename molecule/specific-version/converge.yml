@@ -1,0 +1,8 @@
+---
+- name: Converge
+  hosts: all
+  roles:
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+      vars:
+        nvm_version: "0.38.0"
+        nodejs_version: "16.14.0"
